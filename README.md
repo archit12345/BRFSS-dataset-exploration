@@ -1,5 +1,5 @@
-# BRFSS-dataset-exploration
-This project uses the Behavioral Risk Factor Surveillance System (BRFSS) dataset to explore research questions related to sleep, self-perceived emotional support, depression, diabetes, and high blood pressure.
+# Exploratory Data Analysis of the Behavioral Risk Factor Survellance System (BRFSS) Dataset
+This project uses the Behavioral Risk Factor Surveillance System (BRFSS) dataset to explore research questions related to sleep, self-perceived emotional support, depression, diabetes, and high blood pressure. This was the capstone project for the online certification in Statistics using R offered by Duke University. 
 
 Link to project on Rpubs: https://rpubs.com/architn01/1309201 
 
