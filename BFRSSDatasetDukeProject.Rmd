@@ -1,0 +1,323 @@
+---
+title: "Exploratory Analysis of BRFSS Dataset for the Duke Statistics with R Course"
+author: "Archit Nangavaram"
+date: "2025-05-11"
+output: html_document
+---
+
+In this project, I will be forming and investigating 3 research questions based on the data and performing an exploratory analysis as my capstone project for the Introduction to Probability and Data course by Duke University. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidymodels)
+library(ggplot2)
+library (stats)
+library(statsr)
+library(ggthemes)
+library(glmnet)
+library(plyr)
+library(interactions)
+library(lm.beta)
+library(jtools)
+
+load("/Users/architn./Downloads/brfss2013.RData")
+```
+
+
+
+### Research Questions: 
+
+Looking through the plentiful data collected by the national survey, I generated the following 3 research questions:
+
+1. Is there a link between sleeping less and depression. Is this relationship moderated by self-percieved emotional support? 
+
+2. Are people who are diagnosed with diabetes at a younger age more likely to need insulin and have eye-health related issues.
+
+3. Are people who sleep less, more likely to have high blood pressure (hypertension)? 
+
+In each section of this document, I dive into an in-depth exploratory analysis of these data. Throughout this project, I utilize skills that I have learned thus far in the Statistics Using R certification by Duke University.The skills I utilize include: data cleaning, data wrangling, data exploration, data visualization, model creation, and interpretation of statistical results. 
+
+
+
+My findings for the first research question follow: 
+
+
+
+
+#### Interactions Between Nightly Hours of Sleep, Depressed Days Per Month, and Self-Percieved Emotional Support
+
+
+##### Introduction
+
+Poor quality sleep is a known predictor of depressive symptomology, such that fixing sleep patterns is a first-line recommendation in the treatment of all depressive disorders. The present study seeks to utilize public health data from the Behavioral Risk Factor Surveillance System (BRFSS) to answer the following question: Is getting less hours of sleep per night associated with depressed mood? If so, is the strength or direction of this relationship moderated by self-perceived emotional support? 
+
+The Behavioral Risk Factor Surveillance System (BRFSS) is a nationwide telephone survey conducted by the Centers for Disease Control and Prevention (CDC) and state health departments to collect data on health behaviors, chronic health conditions, and health care access. It's the largest continuous health survey system in the world, gathering state-level data to monitor trends and inform public health efforts. 
+
+The datasets is used by policymakers, researchers, academics and is available for the public as well. The dataset 
+plays an important role in public health surveillance by closely monitoring public health trends, aiding in 
+the implementation of targeted preventative efforts, and highlighting health disparities in underrepresented 
+communities. 
+
+Although previous studies have already demonstrated a link between poor sleep and depression, this study contributes to the current literature by evaluating self-perceived emotional support as a moderator of the depression ~ sleep relationship. 
+
+My hypotheses are as follows:
+
+**H1:** Individuals who get fewer hours of sleep per night will experience a depressed mood for more days out of the month (depressed days) when compared to those who get more hours of sleep per night. This is to say that hours of sleep will be negatively correlated with depressed mood. This will confirm the findings of the current literature. 
+
+**H2:** The relationship between sleep and depression will be moderated by self-percieved emotional support. This is to say that even if someone sleeps for less hours, but they feel they have a high level of emotional support, they will not experience depressed mood. 
+
+
+
+
+##### Methods 
+
+Participants completed a self-report survey measuring hours of sleep, emotional support, and depressive symptoms. Emotional support was assessed using a 5-point scale where higher values indicated less perceived emotional support (1 = Always, 2 = Usually, 3 = Sometimes, 4 = Rarely, 5 = Never). Depression was measured as a continuous outcome variable describing the number of days the participant reported feeling depressed in the past 30 days. The primary predictor was hours of sleep, which was mean-centered before analysis.
+
+Here I selected the variables I required from the dataset. 
+
+```{r}
+
+# Selecting desired variables, filtering sleep range, and removing NA values.
+newdata <- brfss2013 %>%
+  select(emtsuprt, qlmentl2, sleptim1) %>%
+  filter(sleptim1 > 3, 
+         sleptim1 < 15) %>%
+  na.omit(newdata)
+
+# Viewing data to make sure everything looks good. 
+head(newdata)
+
+```
+
+
+Next, I visualized the relationships between sleep and depressed mood and self-perceived emotional support and depression to get a better idea of the two variables correlation with depression. This exploration of the data to visualization highlighted a few things. 
+
+Firstly, people who report sleeping 6-8 hours a night seem to be the least likely to report feeling depressed over the course of a month. This is consistent with previous research findings. 
+
+Secondly, there is a clear relationship demonstrating that as self-percieved emotional support decreases, the number of days participants report feeling depressed increases. Responses are recorded to the question: "How often do you feel you are able to receive emotional support when you require it?"
+
+Refer to the following visualizations:
+
+```{r}
+# Visualizing relationship between hours of sleep and depressed days 
+ggplot(newdata, aes(x = sleptim1, y = qlmentl2, color = sleptim1)) + 
+  geom_count() + 
+  labs(title = "Nightly Hours of Sleep vs Number of Depressed Days Per Month", 
+       x = "Hours of Sleep",
+       y = "Depressed Days") +
+  theme_minimal()
+
+# Visualizing the relationship between emotional support and depressed days. 
+ggplot(newdata, aes(x = emtsuprt, y = qlmentl2, fill = emtsuprt)) + 
+  geom_boxplot() + 
+  labs(title = "Self-Percieved Emotional Support vs Number of Depressed Days Per Month") + 
+  theme_excel_new()
+```
+
+**Analytic Strategy** 
+
+To test whether emotional support moderated the relationship between sleep and depression, a multiple linear regression was conducted. The model included centered sleep, emotional support (treated as a categorical moderator using dummy coding), and interaction terms between sleep and each level of emotional support. A simple slopes analysis was used to probe the nature of the interaction and assess whether the effect of sleep on depression differed at various levels of emotional support.
+
+
+In a simple linear regression model, fewer hours of sleep significantly predicted higher depression scores (b = -0.60, p-value = 0.022). This confirms previous findings that as hours of sleep decreases, the likelihood of experiencing depression increases. 
+
+In a simple linear regression model, lower self-reported emotional support (higher values on scale) significantly predicted higher depression scores but only in the group of participants who responded "Sometimes," (b = 3.08, p-value = 0.004), and those who responded "Rarely," (b = 6.725, p-value = 0.001). Keep in mind the coefficients are postive due to the ordering of the scale (Always = 1, Never = 5), therefore this represents a negative relationship between social support and depression. As social support decreases, depression scores increase, very significantly
+
+
+However, when emotional support was added to the model, the relationship between sleep and depression became non-significant (p = .14).
+
+Emotional support itself was a significant predictor of depression. Participants reporting lower emotional support (higher values on the scale) tended to have higher depression scores.
+
+```{r}
+# Simple model of sleep hours as a predictor of day experiencing depression
+
+model_sleepdep <- lm(qlmentl2 ~ sleptim1, data = newdata)
+  
+summary(model_sleepdep) #There is a moderately significant negative relationship between sleep and depression
+
+
+
+# Simple model of emotional support to predict depression
+
+model_emtsuprt_dep <- lm(qlmentl2 ~ emtsuprt, newdata) 
+
+summary(model_emtsuprt_dep) # There is significant negative relationship between lack of emotional support and depression. 
+```
+
+
+Next, I created a multiple linear regression model with a moderation analysis to evaluate the effect of self-perceived emotional support on the relationship that we just found between nightly sleep hours per night and depressed days per month.In the model, the reference group is the group of respondents who responded with "Always". 
+
+
+```{r}
+# Now developing a model to see if hours of sleep acts as a moderator on the relationship between 
+# hours of sleep and depressed days. 
+
+# First, I will start by centering the sleeptim1 values so the mean becomes zero. 
+
+centered_sleep <- newdata$sleptim1 - mean(newdata$sleptim1)
+
+
+# Seeing if there is a moderation by emotional support on depression level. 
+moderation_model <- lm(qlmentl2 ~ centered_sleep + emtsuprt + centered_sleep*emtsuprt, data = newdata) 
+
+summary(moderation_model) 
+
+# found that the relationship between sleep and depression disappears, the relationship between emotional support and depression is stronger! People who reported sometimes or rarely having emotional support are much more likely to be depressed than those who reported Always. 
+
+
+#Simple slopes analysis of the moderation model. 
+probe_interaction(model = moderation_model, pred=centered_sleep, modx = emtsuprt)
+
+```
+
+Results showed that fewer hours of sleep were associated with higher depression scores in a simple model; however, this relationship became nonsignificant (p-value = 0.43) after accounting for self-perceived emotional support. This indicates that self-percieves emotional support has a stronger effect on the model than hours of sleep.  
+
+The emotional support groups Sometimes, Rarely and Never were modesty signifcant (p-value = 0.06, p-value = 0.06, p-value = 0.05). However, when the moderation analysis, which included the interaction between sleep and emotion support was conducted, only the lowest emotional support group (Never) remotely approached significance (b = -1.40, p-value = 0.13). This suggests sleep may be protective when emotional support is very low. 
+
+
+**Conclusion**
+
+The hypothesis that sleep hours and depression is negatively related was confirmed (b = -0.60, p-value = 0.02). As one sleeps less, they are more likely to experience more depressed days in the month. Emotional support was very strongly negatively correlated with depression (b = 1.78-6.72, p-value = 0.001 -0.15). As one feels they have less social support they are more likely to be depressed. There was no statistically significant moderating effect of emotional support on the sleep ~ depression relationship. Emotional support approached a significant moderating effect (p = 0.13) on the relationship between sleep and depression, but only at the lowest level of emotional support (Never). Specifically, among participants who reported never receiving emotional support, more sleep was significantly associated with lower levels of depression (b = -1.40, p = 0.13). These findings suggest that the protective effect of sleep is strongest when emotional support is absent, potentially compensating for the lack of interpersonal buffering.
+
+
+
+
+
+
+#### Does Being Diagnosed With Diabetes at a Younger Age Lead to a Greater Likelihood of Using Insulin & Experiencing Eye-Health Issues? 
+
+In this section I work on cleaning, organizing, and visualizing my data to find out if being diagnosed with 
+diabetes at a younger age leads to a greater likelihood of experiencing eye issues and needing insulin. 
+
+```{r}
+
+x <- as.integer(brfss2013$diabage2) # converting age from a factor to a integer
+
+
+#Selecting data I need, cleaning the age column, adding an age group column.
+# Ensuring the age groups are treated as a factor with levels (ordinal, categorical variable)
+
+
+diabdata2 <- brfss2013 %>% 
+  select(diabage2, diabeye, insulin) %>%
+  mutate(age = x) %>%
+  filter(age != 1) %>%
+  select(-diabage2) %>%
+  mutate(age_group = case_when( 
+    age <= 30 ~ "Diagnosed as Young Adult", 
+    age <= 55 ~ "Diagnosed as Middle Aged", 
+    TRUE ~ "Diagnosed as Older Adult")) %>%
+  mutate(age_group = factor(age_group, levels = c("Diagnosed as Young Adult", 
+                            "Diagnosed as Middle Aged", "Diagnosed as Older Adult")))
+
+
+#Removing NA values from the newly created dataset. 
+
+diabdataclean <- na.omit(diabdata2) #
+
+
+#Making sure everything looks good. 
+
+head(diabdataclean)
+
+
+# Barplot of age group and insulin use
+
+diabdataclean %>% 
+  ggplot(aes(x = age_group, fill = insulin)) + 
+  geom_bar(position = "fill") + 
+  labs(title = "Percentage Using Insulin In Each Age Group", 
+       x = "Age Group", y = NULL) + 
+  scale_y_continuous(labels = scales::percent) 
+
+
+ #Barplot of age group and eye problems
+
+diabdataclean %>% 
+  ggplot(aes(x = age_group, fill = diabeye)) + 
+  geom_bar(position = "fill") + 
+  labs(title = "Percentage w/ Eye Problems In Each Age Group", 
+       x = "Age Group", y = NULL) + 
+  scale_y_continuous(labels = scales::percent)
+
+```
+
+
+The graph demonstrates a clear relationship between age at diagnosis and insulin use and eye-health related issues. The younger an individual is at the age of diagnosis, the more likely they are to need insulin or to experience eye-health related issues. This could be due to factors such as being diagnosed with type-1 diabetes as a child, where the use of insulin is neccessary due to the inability to produce the hormone on one's own. Another possible explanation is that the length of time with the diagnosis leads to greater complications (in both type 1 and type 2 diabetes), as seen with the eye-health related issues in this study. 
+
+
+
+
+
+
+#### Is Getting Less Sleep Associated With Hypertension? 
+
+In this analysis, I compared hours of nightly sleep to whether or not repspondents have ever been told they have hypertension. The hypertension variable is treated as a binary, categorical variable. I used logistic regression to predict high blood pressure from hours of nightly sleep. The visualization I created highlights some interesting findings. 
+
+```{r}
+
+# Selecting the variables I want to analyze and seeing cleaning the data a bit
+# Filtering out unneccesary categories of blood pressure (n = very small_)
+
+bpdata <- brfss2013 %>% 
+  select(bphigh4, sleptim1) %>%
+  filter(sleptim1 > 2, sleptim1 <= 15) %>% 
+  filter(bphigh4 != "Yes, but female told only during pregnancy", 
+         bphigh4 != "Told borderline or pre-hypertensive") 
+
+bpdataclean <- na.omit(bpdata) # Getting rid of NA values
+
+head(bpdataclean) 
+
+```
+
+
+My model was a simple binomial logistic regression model. The model found a slight negative relationship (b = -0.004) that was statistically significant (p-value = 0.035). I hypothesize the small estimate coefficient is due to the fact that there seems to be a curvilinear relationship between sleep and blood pressure, as we will later see in the figures that follow. 
+
+I still need to learn alot more about fitting and evaluating models. 
+
+```{r}
+# Creating a logistic regression model. Significant and slighlty negative relationship. 
+model_bp <- glm(bphigh4 ~ sleptim1, data = bpdataclean, family = "binomial")
+summary(model_bp)
+```
+
+
+```{r}
+# From graphing the data in a bar chart, we see that both lack of sleep and excessive sleep 
+# are associated with high blood pressure. 
+
+ggplot(bpdataclean, aes(x = sleptim1, fill = bphigh4)) +
+  geom_bar(position = "fill") + 
+  scale_y_continuous(labels = scales::percent) + 
+  labs(title = "High Blood Pressure vs Hours of Sleep", 
+       x = "Hours of Sleep Per Night", 
+       y = NULL) + 
+  guides(fill = guide_legend(title = "High BP")) 
+
+
+```
+
+From the figure above, we see that with that both a lack of sleep and an excessive amount of sleep is associated 
+with high blood pressure. The sweet spot seems to be around 7-8 hours of sleep, which make sense given 
+current research. 
+
+This also explains the small negative relationship we saw between sleep and bloodpressure in our logistic regression model (b =0.004). Perhaps a different model could fit the model better. 
+
+
+
+
+
+
+
+#### Overall Findings From This Exploratory Analysis Project
+
+*Finding One:* Sleep and depression are negatively related to eachother. This relationship is partially moderated by self-percieved emotional support, but only in the group with the lowest SPES (Never). This suggest that those with the lowest emotional support may need sleep as a protective factor. 
+
+The relationship between emotional support and depression is stronger and more significant than that between sleep and depression. This could imply that emotional support is a stronger protective factor than sleep. 
+
+*Finding Two:* The younger an individual is diagnosed with diabetes, the more likely they are to need to use insulin and face eye-health related issues. 
+
+*Finding Three:* Hypertension is associated with both lack of sleep and excessive sleep. The sweet spot seems to be 6-7 hours of sleep per night. 
